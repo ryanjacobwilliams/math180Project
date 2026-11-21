@@ -5,15 +5,22 @@
 
 library(pROC)
 library(PRROC)
+library(glmnet)
 
 # 1. Import and prepare data
 
 set.seed(1)
 
 data <- read.csv(
-  "NBA_Processed_Data.csv",
-  stringsAsFactors = TRUE
+  "C:/Users/User/OneDrive/Desktop/UC Merced/Senior Year/Fall 2026/Math 180/project/Latest data as of 11.20.csv",
+  stringsAsFactors = TRUE,
+  na.strings = c("", "NA", "#N/A")
 )
+
+data$Team <- NULL
+
+# Remove undrafted players
+data <- data[!is.na(data$Draft.Year) & !is.na(data$Draft..), ]
 
 # Separate identifiers from model predictors
 player_id <- data[, c("Player", "Season")]
@@ -232,3 +239,126 @@ summary(glm.backward)
 
 # Compare AIC
 AIC(logistic_model, glm.backward)
+
+# 10. Backward Selection Cross-Validation
+
+# Store validation log-loss
+backward.cv.error <- numeric(K)
+
+for (k in 1:K) {
+  
+  # Divide into training and validation folds
+  fold_train <- train_data[folds != k, ]
+  fold_valid <- train_data[folds == k, ]
+  
+  # Fit full model on training fold
+  fold_full <- glm(
+    AllStar ~ .,
+    data = fold_train,
+    family = binomial
+  )
+  
+  # Perform backward selection on training fold
+  fold_backward <- step(
+    fold_full,
+    direction = "backward",
+    trace = 0
+  )
+  
+  # Predict validation probabilities
+  p <- predict(
+    fold_backward,
+    newdata = fold_valid,
+    type = "response"
+  )
+  
+  # Calculate validation log-loss
+  backward.cv.error[k] <- log_loss(
+    fold_valid$AllStar,
+    p
+  )
+}
+
+# Cross-validation results
+backward.cv.error
+
+# Average CV log-loss
+mean(backward.cv.error)
+
+# Standard deviation
+sd(backward.cv.error)
+
+# 11. Ridge Logistic Regression
+
+# Create predictor matrices (including dummy variables)
+x.train <- model.matrix(AllStar ~ ., train_data)[, -1]
+x.test <- model.matrix(AllStar ~ ., test_data)[, -1]
+
+# Convert response to binary
+y.train <- as.integer(train_data$AllStar == "Yes")
+
+# Lambda values
+lambda.grid <- 10^seq(-3, 2, length = 100)
+
+# Fit Ridge regression
+ridge.model <- glmnet(
+  x.train,
+  y.train,
+  family = "binomial",
+  alpha = 0,
+  lambda = lambda.grid
+)
+
+# Plot coefficient paths
+plot(ridge.model, xvar = "lambda",
+     main = "Ridge Logistic Regression")
+
+# Cross-validation to select lambda
+set.seed(1)
+
+ridge.cv <- cv.glmnet(
+  x.train,
+  y.train,
+  family = "binomial",
+  alpha = 0,
+  lambda = lambda.grid,
+  nfolds = 10,
+  type.measure = "deviance"
+)
+
+# Plot cross-validation results
+plot(ridge.cv)
+
+# Optimal lambda
+ridge.cv$lambda.min
+
+# Ridge coefficients at optimal lambda
+coef(ridge.cv, s = "lambda.min")
+
+# Predicted probabilities on test set
+ridge.prob <- as.vector(
+  predict(
+    ridge.cv,
+    newx = x.test,
+    s = "lambda.min",
+    type = "response"
+  )
+)
+  
+ridge.test.loss <- log_loss(
+  test_data$AllStar,
+  ridge.prob
+)
+
+# Compare models
+cv.comparison <- data.frame(
+  Model = c("Full Logistic", "Backward Selection", "Ridge Regression"),
+  CV_LogLoss = c(
+    mean(cv_log_loss),
+    mean(backward.cv.error),
+    mean(ridge.test.loss)
+    
+  )
+)
+
+print(cv.comparison)

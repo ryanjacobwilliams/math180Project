@@ -1,8 +1,5 @@
 # Import data
-data = read.csv("C:/Users/User/OneDrive/Desktop/UC Merced/Senior Year/Fall 2026/Math 180/project/180 Group Project Data (Latest Version) - Player data Over 41 games and 1k minutes.csv", stringsAsFactors = TRUE, na.strings = c("", "NA", "#N/A"))
-
-# Remove 2023 season
-data <- data[data$Season != 2023, ]
+data = read.csv("C:/Users/User/OneDrive/Desktop/UC Merced/Senior Year/Fall 2026/Math 180/project/Latest data as of 11.20.csv", stringsAsFactors = TRUE, na.strings = c("", "NA", "#N/A"))
 
 # Remove players who were traded mid season
 data <- data[data$Team != "Two Teams", ]
