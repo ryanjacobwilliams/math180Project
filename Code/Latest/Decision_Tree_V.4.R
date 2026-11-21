@@ -1,14 +1,17 @@
 ####### Intialization
 
+# Data set being used is "Latest Data as of 11.20 in Git Hub
 DataSet = read.csv("C:\\Users\\Cyrus\\Documents\\Math_180_project\\Latest Data as of 11.20.csv",
                    na.strings = "#N/A", stringsAsFactors = TRUE)
 
-NoNADataSet = DataSet[complete.cases(DataSet),]
-
 PlayerNames = DataSet$Player
-DataSet = DataSet[,-1]
+Season = DataSet$Season
 
-# The code commented out below ended up not being needed
+# Removing player names and season as we will not use them as predictors
+DataSet = DataSet[,-c(1,2)]
+
+# The code commented out below ended up not being needed for the moment, I 
+# havent deleted it yet in case it becomes necessary again
 
 # Changing the players with no draft year or number to factor "Undrafted"
 #CHARVECYEAR = as.character(DataSet$Draft.Year)
@@ -20,16 +23,11 @@ DataSet = DataSet[,-1]
 
 
 # Individual data set selected by position 
-#Center = read.csv("C:\\Users\\Cyrus\\Documents\\Math_180_project\\Data Split by Position\\Center.csv")
 Center = DataSet[DataSet$Position == "C",]
 PointG = DataSet[DataSet$Position == "PG",]
 PowerF = DataSet[DataSet$Position == "PF",]
 ShootG = DataSet[DataSet$Position == "SG",] 
 SmallF = DataSet[DataSet$Position == "SF",] 
-#PointG = read.csv("C:\\Users\\Cyrus\\Documents\\Math_180_project\\Data Split by Position\\Point Gaurd.csv")
-#PowerF = read.csv("C:\\Users\\Cyrus\\Documents\\Math_180_project\\Data Split by Position\\Power Forward.csv")
-#ShootG = read.csv("C:\\Users\\Cyrus\\Documents\\Math_180_project\\Data Split by Position\\Shooting Gaurd.csv")
-#SmallF = read.csv("C:\\Users\\Cyrus\\Documents\\Math_180_project\\Data Split by Position\\Small Forward.csv")
 
 
 set.seed(1)
@@ -42,8 +40,8 @@ Checksums = vector()
 PosDataSetYES = list()
 PosDataSetNO = list()
 YESIndexList = list()
-#YESM = matrix()
-
+StoreYES = list()
+StoreNO = list()
 
 # Combining the position data sets into a list (a list of data frames)
 PosDataSet = list(Center, PointG, PowerF, ShootG, SmallF)
@@ -66,7 +64,7 @@ PosDataSet = list(Center, PointG, PowerF, ShootG, SmallF)
 for( f in 1:length(PosDataSet) ){
   YESIndex = vector()
   for( r in 1:nrow( PosDataSet[[f]] ) ){
-    if( PosDataSet[[f]][r,2] == "Yes" ){
+    if( PosDataSet[[f]][r,1] == "Yes" ){
       YESIndex = append(YESIndex, r)
     }
   }
@@ -82,8 +80,8 @@ for( f in 1:length(PosDataSet) ){
   PosDataSetNO[[f]] = PosDataSet[[f]][ -YESIndexList[[f]], ]
 }
 
-# Checking the sums of 'PosDataSetNo' and 'PosDataSetYes' to make sure they 
-# match 'PosDataSet'
+# Checking the rowsums of 'PosDataSetNo' and 'PosDataSetYes' to make sure they 
+# match the total rows in 'PosDataSet'
 
 
 for( f in 1:length(PosDataSet) ){
@@ -114,9 +112,10 @@ for( f in 1:length(PosDataSet) ){
   
 }
 
-SplitW = sample(1:nrow(PosDataSet), nrow(PosDataSet) / 3)
-SplitW2 = sample(1:nrow(PosDataSet[-SplitW,]), nrow(PosDataSet[-SplitW,]) / 2)
+SplitW = sample(1:nrow(DataSet), nrow(DataSet) / 3)
+SplitW2 = sample(1:nrow(DataSet[-SplitW,]), nrow(DataSet[-SplitW,]) / 2)
 
 BTree = tree(AllStar ~. -Draft.Year - Draft.., DataSet)
 plot(BTree)
 text(BTree, pretty = 1, srt = 10, cex = .65, col = "red")
+
