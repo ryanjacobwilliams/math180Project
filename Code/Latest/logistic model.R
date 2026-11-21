@@ -12,7 +12,7 @@ library(glmnet)
 set.seed(1)
 
 data <- read.csv(
-  "C:/Users/User/OneDrive/Desktop/UC Merced/Senior Year/Fall 2026/Math 180/project/Latest data as of 11.20.csv",
+  "C:/Users/User/OneDrive/Desktop/UC Merced/Senior Year/Fall 2026/Math 180/project/math180Project/Data/Latest data as of 11.20.csv",
   stringsAsFactors = TRUE,
   na.strings = c("", "NA", "#N/A")
 )
@@ -65,7 +65,7 @@ test_prob <- predict(
 )
 
 test_pred <- factor(
-  ifelse(test_prob >= 0.5, "Yes", "No"),
+  ifelse(test_prob >= 0.33, "Yes", "No"),
   levels = c("No", "Yes")
 )
 
@@ -85,9 +85,9 @@ FP <- conf_matrix["No", "Yes"]
 FN <- conf_matrix["Yes", "No"]
 
 accuracy <- (TP + TN) / sum(conf_matrix)
-precision <- safe_divide(TP, TP + FP)
-sensitivity <- safe_divide(TP, TP + FN)
-specificity <- safe_divide(TN, TN + FP)
+precision <- TP/ (TP + FP)
+sensitivity <- TP/ (TP + FN)
+specificity <- TN/ (TN + FP)
 
 classification_metrics <- c(
   Accuracy = accuracy,
@@ -240,6 +240,46 @@ summary(glm.backward)
 # Compare AIC
 AIC(logistic_model, glm.backward)
 
+test_prob <- predict(
+  glm.backward,
+  newdata = test_data,
+  type = "response"
+)
+
+test_pred <- factor(
+  ifelse(test_prob >= 0.33, "Yes", "No"),
+  levels = c("No", "Yes")
+)
+
+conf_matrix <- table(
+  Actual = test_data$AllStar,
+  Predicted = test_pred
+)
+
+# Counts and percentages of entire test set
+print(conf_matrix)
+print(round(100 * prop.table(conf_matrix), 2))
+
+# Classification metrics
+TP <- conf_matrix["Yes", "Yes"]
+TN <- conf_matrix["No", "No"]
+FP <- conf_matrix["No", "Yes"]
+FN <- conf_matrix["Yes", "No"]
+
+accuracy <- (TP + TN) / sum(conf_matrix)
+precision <- TP/ (TP + FP)
+sensitivity <- TP/ (TP + FN)
+specificity <- TN/ (TN + FP)
+
+classification_metrics <- c(
+  Accuracy = accuracy,
+  Precision = precision,
+  Sensitivity = sensitivity,
+  Specificity = specificity
+)
+
+print(classification_metrics)
+
 # 10. Backward Selection Cross-Validation
 
 # Store validation log-loss
@@ -362,3 +402,107 @@ cv.comparison <- data.frame(
 )
 
 print(cv.comparison)
+
+# 12. Export Model Plots as PNG Files
+
+# Set output directory (relative to repository root)
+output_dir <- "Results"
+
+# Create folder if it does not exist
+dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+
+# 12.1 Logistic Regression ROC Curve
+png(file.path(output_dir, "Logistic_ROC.png"),
+    width = 1000, height = 800, res = 120)
+
+plot(roc_model,
+     main = "ROC Curve: Logistic Regression",
+     col = "blue", lwd = 2)
+
+dev.off()
+
+
+# 12.2 Precision-Recall Curve
+png(file.path(output_dir, "Logistic_PR.png"),
+    width = 1000, height = 800, res = 120)
+
+plot(pr_model,
+     main = "Precision-Recall Curve: Logistic Regression")
+
+dev.off()
+
+
+# 12.3 Logistic Regression Cross-Validation
+png(file.path(output_dir, "Logistic_CV.png"),
+    width = 1000, height = 800, res = 120)
+
+plot(1:K, cv_log_loss,
+     type = "b", pch = 19,
+     xlab = "Fold",
+     ylab = "Validation Log-Loss",
+     main = "10-Fold Cross-Validation: Logistic Regression")
+
+abline(h = mean(cv_log_loss), col = "red", lty = 2)
+
+dev.off()
+
+
+# 12.4 Ridge Coefficient Paths
+png(file.path(output_dir, "Ridge_Coefficients.png"),
+    width = 1000, height = 800, res = 120)
+
+plot(ridge.model,
+     xvar = "lambda",
+     main = "Ridge Logistic Regression: Coefficient Paths")
+
+dev.off()
+
+
+# 12.5 Ridge Cross-Validation
+png(file.path(output_dir, "Ridge_CV.png"),
+    width = 1000, height = 800, res = 120)
+
+plot(ridge.cv,
+     main = "Ridge Logistic Regression: Cross-Validation")
+
+dev.off()
+
+
+# 12.6 Model Comparison
+png(file.path(output_dir, "Model_Comparison.png"),
+    width = 1000, height = 800, res = 120)
+
+barplot(
+  cv.comparison$CV_LogLoss,
+  names.arg = cv.comparison$Model,
+  col = c("steelblue", "darkgreen", "orange"),
+  ylab = "Cross-Validated Log-Loss",
+  main = "NBA All-Star Prediction: Model Comparison",
+  las = 2,
+  ylim = c(0, max(cv.comparison$CV_LogLoss) * 1.2)
+)
+
+dev.off()
+
+
+# 12.7 Predicted Probability Distribution
+png(file.path(output_dir, "Probability_Distribution.png"),
+    width = 1000, height = 800, res = 120)
+
+boxplot(
+  test_prob ~ test_data$AllStar,
+  xlab = "Actual All-Star Status",
+  ylab = "Predicted Probability",
+  main = "Predicted All-Star Probabilities",
+  col = c("lightblue", "lightgreen")
+)
+
+abline(h = 0.33, col = "red", lty = 2, lwd = 2)
+
+legend("topleft",
+       legend = "Decision Threshold (0.33)",
+       col = "red", lty = 2, bty = "n")
+
+dev.off()
+
+cat("All plots saved to:", normalizePath(output_dir), "\n")
